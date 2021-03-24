@@ -6,6 +6,8 @@ import logging.config
 import bottle
 from bottle import get, post, request, response, template, redirect
 
+import uuid
+import requests
 
 # Set up app and logging
 app = bottle.default_app()
@@ -27,28 +29,54 @@ if not sys.warnoptions:
 
 @get('/')
 def show_form():
-    count1 = request.get_cookie('count1', default='0')
-    count2 = request.get_cookie('count2', default='0')
+
+    # Get the session_id from a cookie
+    sessionId = request.get_cookie('session-id', default=str(uuid.uuid4()) )
+
+    # Get session data for session_id
+    r = requests.get(f'{KV_URL}/{sessionId}').json()
+    sessionData = r.get(sessionId) or {}
+
+    count1 = sessionData.get('count1') or 0
+    count2 = sessionData.get('count2') or 0
 
     count1 = int(count1) + 1
 
-    response.set_cookie('count1', str(count1))
+    sessionData['count1'] = count1
+    sessionData['count2'] = count2
+
+    requests.put(f'{KV_URL}/', json={sessionId: sessionData})
+
+    response.set_cookie('session-id', sessionId)
 
     return template('counter.tpl', counter1=count1, counter2=count2)
 
 
 @post('/increment')
 def increment_count2():
-    count2 = request.get_cookie('count2', default='0')
+
+    # Get the session_id from a cookie
+    sessionId = request.get_cookie('session-id')
+
+    # Get session data for session_id
+    r = requests.get(f'{KV_URL}/{sessionId}').json()
+    sessionData = r.get(sessionId) or {}
+
+    count2 = sessionData.get('count2') or 0
     count2 = int(count2) + 1
-    response.set_cookie('count2', str(count2))
+    sessionData['count2'] = count2
+
+    requests.put(f'{KV_URL}/', json={sessionId: sessionData})
 
     return redirect('/')
 
 
 @post('/reset')
 def reset_counts():
-    response.delete_cookie('count1')
-    response.delete_cookie('count2')
+    
+    # Get the session_id from a cookie
+    sessionId = request.get_cookie('session-id')
+
+    r = requests.delete(f'{KV_URL}/{sessionId}').json()
 
     return redirect('/')
