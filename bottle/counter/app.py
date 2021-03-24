@@ -8,6 +8,8 @@ from bottle import get, post, request, response, template, redirect
 
 import uuid
 import requests
+from datetime import datetime
+
 
 # Set up app and logging
 app = bottle.default_app()
@@ -73,10 +75,12 @@ def increment_count2():
 
 @post('/reset')
 def reset_counts():
-    
+
     # Get the session_id from a cookie
     sessionId = request.get_cookie('session-id')
 
     r = requests.delete(f'{KV_URL}/{sessionId}').json()
+
+    response.set_cookie('session-id', '', expires=datetime(1970, 1, 1))
 
     return redirect('/')
